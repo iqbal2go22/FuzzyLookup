@@ -23,7 +23,7 @@ st.markdown("""
     .main-header {
         font-size: 2rem !important;
         font-weight: 600;
-        color: #ff4b4b;
+        color: #4d7d3c; /* SiteOne green */
         margin-bottom: 1rem;
     }
     .section-header {
@@ -33,15 +33,15 @@ st.markdown("""
         margin-bottom: 0.5rem;
     }
     .stButton>button {
-        background-color: #ff4b4b;
+        background-color: #4d7d3c; /* SiteOne green */
         color: white;
         font-weight: 500;
     }
     .stButton>button:hover {
-        background-color: #ff6b6b;
+        background-color: #5c8e4a; /* Lighter SiteOne green */
     }
     .connection-line {
-        stroke: #2196F3;
+        stroke: #4d7d3c; /* SiteOne green */
         stroke-width: 2;
     }
     .field-card {
@@ -52,11 +52,11 @@ st.markdown("""
         background-color: white;
     }
     .highlight {
-        background-color: #e6f7ff;
-        border-left: 3px solid #1890ff;
+        background-color: #e6f7ee;
+        border-left: 3px solid #4d7d3c;
     }
     .stProgress > div > div > div > div {
-        background-color: #ff4b4b;
+        background-color: #4d7d3c; /* SiteOne green */
     }
     .status-text {
         margin-top: 0.5rem;
@@ -72,7 +72,7 @@ st.markdown("""
     }
     .download-button {
         display: inline-block;
-        background-color: #ff4b4b;
+        background-color: #4d7d3c; /* SiteOne green */
         color: white;
         padding: 0.5rem 1rem;
         border-radius: 5px;
@@ -81,7 +81,7 @@ st.markdown("""
         margin-top: 1rem;
     }
     .download-button:hover {
-        background-color: #ff6b6b;
+        background-color: #5c8e4a; /* Lighter SiteOne green */
         color: white;
     }
 </style>
@@ -121,7 +121,7 @@ def get_download_link(df, filename="matched_results.xlsx"):
         worksheet = writer.sheets['Matched Results']
         
         # Format header row
-        header_fill = PatternFill(start_color="FF4B4B", end_color="FF4B4B", fill_type="solid")
+        header_fill = PatternFill(start_color="4D7D3C", end_color="4D7D3C", fill_type="solid")
         header_font = Font(color="FFFFFF", bold=True)
         header_border = Border(
             bottom=Side(style='medium', color="DDDDDD")
@@ -271,6 +271,12 @@ st.write("Upload two datasets, map fields for comparison, and generate fuzzy mat
 
 # Create sidebar for data upload and matching configuration
 with st.sidebar:
+    st.markdown("""
+    <div style="background-color: #424f38; padding: 10px; border-radius: 5px; margin-bottom: 20px;">
+        <h2 style="color: white; margin: 0; font-size: 1.3rem;">Data Matcher</h2>
+    </div>
+    """, unsafe_allow_html=True)
+    
     st.markdown("<h2 class='section-header'>1. Upload Data</h2>", unsafe_allow_html=True)
     
     # File uploads
@@ -386,7 +392,7 @@ if st.session_state.df1 is not None and st.session_state.df2 is not None:
                 type="line",
                 x0=0.2, y0=y_pos,
                 x1=0.8, y1=y_pos,
-                line=dict(color="#2196F3", width=2)
+                line=dict(color="#4d7d3c", width=2)
             )
             
             # Add field names
