@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import io
 import base64
+import time
 from rapidfuzz import fuzz, process
 import openpyxl
 from openpyxl.styles import PatternFill, Border, Side, Alignment, Font
@@ -53,6 +54,35 @@ st.markdown("""
     .highlight {
         background-color: #e6f7ff;
         border-left: 3px solid #1890ff;
+    }
+    .stProgress > div > div > div > div {
+        background-color: #ff4b4b;
+    }
+    .status-text {
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+        color: #4a4a4a;
+        font-size: 1rem;
+    }
+    .metric-card {
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        padding: 1rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .download-button {
+        display: inline-block;
+        background-color: #ff4b4b;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        margin-top: 1rem;
+    }
+    .download-button:hover {
+        background-color: #ff6b6b;
+        color: white;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -148,10 +178,20 @@ def calculate_similarity(str1, str2, method="jaro_winkler"):
         return fuzz.ratio(str1, str2) / 100.0
 
 # Function to match records based on field mappings
-def match_datasets(df1, df2, field_mappings, threshold=0.8, method="jaro_winkler"):
+def match_datasets(df1, df2, field_mappings, threshold=0.8, method="jaro_winkler", progress_bar=None, status_text=None):
     """Match records between two datasets using fuzzy matching"""
     # Initialize results dataframe
     results = pd.DataFrame()
+    
+    # Calculate total number of comparisons
+    total_comparisons = len(df1) * len(df2)
+    processed_comparisons = 0
+    
+    # Initialize progress tracking
+    if progress_bar:
+        progress_bar.progress(0)
+    if status_text:
+        status_text.text(f"Processing: 0/{total_comparisons} comparisons (0%)")
     
     # For each record in df1
     for idx1, row1 in df1.iterrows():
@@ -185,6 +225,21 @@ def match_datasets(df1, df2, field_mappings, threshold=0.8, method="jaro_winkler
                     
                     # Append to results dataframe
                     results = pd.concat([results, pd.DataFrame([new_row])], ignore_index=True)
+            
+            # Update progress
+            processed_comparisons += 1
+            if processed_comparisons % max(1, total_comparisons // 100) == 0 or processed_comparisons == total_comparisons:
+                progress_percent = processed_comparisons / total_comparisons
+                if progress_bar:
+                    progress_bar.progress(progress_percent)
+                if status_text:
+                    status_text.text(f"Processing: {processed_comparisons}/{total_comparisons} comparisons ({int(progress_percent*100)}%)")
+    
+    # Update progress to complete
+    if progress_bar:
+        progress_bar.progress(1.0)
+    if status_text:
+        status_text.text(f"Completed: {total_comparisons}/{total_comparisons} comparisons (100%)")
     
     # Sort results by similarity score (descending)
     if not results.empty:
@@ -416,36 +471,59 @@ if st.session_state.df1 is not None and st.session_state.df2 is not None:
         if not st.session_state.field_mappings:
             st.error("Please create at least one field mapping before processing.")
         else:
-            # Show a spinner while processing
-            with st.spinner("Processing data..."):
-                # Perform matching
-                results = match_datasets(
-                    st.session_state.df1,
-                    st.session_state.df2,
-                    st.session_state.field_mappings,
-                    threshold=st.session_state.threshold,
-                    method=st.session_state.method
-                )
+            # Create progress indicators
+            st.markdown("<h3>Processing Data</h3>", unsafe_allow_html=True)
+            progress_bar = st.progress(0)
+            status_text = st.empty()
+            stats_container = st.container()
+            
+            # Display processing stats
+            with stats_container:
+                stats_cols = st.columns(4)
+                record_count1 = stats_cols[0].metric("Dataset 1 Records", len(st.session_state.df1))
+                record_count2 = stats_cols[1].metric("Dataset 2 Records", len(st.session_state.df2))
+                total_comparisons = stats_cols[2].metric("Total Comparisons", len(st.session_state.df1) * len(st.session_state.df2))
+                est_time = stats_cols[3].metric("Est. Processing Time", f"{len(st.session_state.df1) * len(st.session_state.df2) // 5000 + 1}s")
+            
+            # Start a timer
+            start_time = time.time()
+            
+            # Perform matching with progress tracking
+            results = match_datasets(
+                st.session_state.df1,
+                st.session_state.df2,
+                st.session_state.field_mappings,
+                threshold=st.session_state.threshold,
+                method=st.session_state.method,
+                progress_bar=progress_bar,
+                status_text=status_text
+            )
+            
+            # Calculate processing time
+            processing_time = time.time() - start_time
+            
+            # Update the status with actual processing time
+            status_text.text(f"Completed in {processing_time:.2f} seconds. Found {len(results)} matches.")
+            
+            # Filter results to only include selected output fields
+            if not results.empty:
+                output_columns = []
                 
-                # Filter results to only include selected output fields
-                if not results.empty:
-                    output_columns = []
-                    
-                    # Add selected fields from df1
-                    for field in st.session_state.output_fields_1:
-                        output_columns.append(f"{field}_1")
-                    
-                    # Add selected fields from df2
-                    for field in st.session_state.output_fields_2:
-                        output_columns.append(f"{field}_2")
-                    
-                    # Add similarity score
-                    output_columns.append("similarity_score")
-                    
-                    # Filter columns
-                    results = results[output_columns]
+                # Add selected fields from df1
+                for field in st.session_state.output_fields_1:
+                    output_columns.append(f"{field}_1")
                 
-                st.session_state.results = results
+                # Add selected fields from df2
+                for field in st.session_state.output_fields_2:
+                    output_columns.append(f"{field}_2")
+                
+                # Add similarity score
+                output_columns.append("similarity_score")
+                
+                # Filter columns
+                results = results[output_columns]
+            
+            st.session_state.results = results
     
     # Display results
     if st.session_state.results is not None:
